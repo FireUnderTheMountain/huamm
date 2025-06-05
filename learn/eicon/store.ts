@@ -1,5 +1,3 @@
-import _ from 'lodash';
-
 import * as remote from '@electron/remote';
 import log from 'electron-log'; //tslint:disable-line:match-default-export-name
 import * as fs from 'fs';
@@ -34,16 +32,14 @@ export class EIconStore {
   protected updater = new EIconUpdater();
 
   async save(): Promise<void> {
-    const fn = this.getStoreFilename();
-
     log.info('eicons.save', {
       records: this.lookup.length,
       asOfTimestamp: this.asOfTimestamp,
-      fn
+      file: this.getStoreFilename()
     });
 
     fs.writeFileSync(
-      fn,
+      this.getStoreFilename(),
       JSON.stringify({
         asOfTimestamp: this.asOfTimestamp,
         records: this.lookup
@@ -83,17 +79,15 @@ export class EIconStore {
         throw new Error('Data from disk is strange.');
       }
 
-      const recordCount = this.lookup.length;
-
-      log.info('eicons.loaded.local', {
-        records: recordCount,
+      log.verbose('eicons.loaded.local', {
+        records: this.lookup.length,
         asOfTimestamp: this.asOfTimestamp
       });
 
       await this.update();
 
-      log.info('eicons.loaded.update.remote', {
-        records: recordCount,
+      log.verbose('eicons.loaded.update.remote', {
+        records: this.lookup.length,
         asOfTimestamp: this.asOfTimestamp
       });
     } catch (err) {
@@ -122,8 +116,6 @@ export class EIconStore {
 
     this.lookup = data.eicons;
 
-    this.resortList();
-
     this.asOfTimestamp = data.asOfTimestamp;
 
     await this.save();
@@ -132,7 +124,7 @@ export class EIconStore {
   }
 
   async update(): Promise<void> {
-    log.info('eicons.update', { asOf: this.asOfTimestamp });
+    log.verbose('eicons.update', { asOf: this.asOfTimestamp });
 
     const changes = await this.updater.fetchUpdates(this.asOfTimestamp);
 
@@ -147,8 +139,6 @@ export class EIconStore {
       .map(i => i.eicon);
 
     this.addIcons(additions);
-
-    this.resortList();
 
     this.asOfTimestamp = changes.asOfTimestamp;
 
@@ -165,10 +155,6 @@ export class EIconStore {
     this.shuffle();
   }
 
-  protected resortList(): void {
-    // _.sortBy(this.records, 'eicon');
-  }
-
   protected addIcons(additions: string[]): void {
     additions.forEach(e => {
       if (!this.lookup.includes(e)) this.lookup.push(e);
@@ -180,23 +166,13 @@ export class EIconStore {
   }
 
   search(searchString: string): string[] {
-    const lcSearch = searchString.trim().toLowerCase();
-    const found = this.lookup.filter(e => e.indexOf(lcSearch) >= 0);
+    const query = searchString.trim().toLowerCase();
+    const found = this.lookup.filter(e => e.indexOf(query) >= 0);
 
     return found.sort((a, b) => {
-      if (
-        a.substr(0, lcSearch.length) === lcSearch &&
-        b.substr(0, lcSearch.length) !== lcSearch
-      ) {
-        return -1;
-      }
+      if (a.startsWith(query) && !b.startsWith(query)) return -1;
 
-      if (
-        b.substr(0, lcSearch.length) === lcSearch &&
-        a.substr(0, lcSearch.length) !== lcSearch
-      ) {
-        return 1;
-      }
+      if (b.startsWith(query) && !a.startsWith(query)) return 1;
 
       return a.localeCompare(b);
     });
