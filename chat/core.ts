@@ -1,4 +1,4 @@
-import Vue, { WatchHandler } from 'vue';
+import { WatchHandler, reactive } from 'vue';
 import { CacheManager } from '../learn/cache-manager';
 import { Channels, Characters } from '../fchat';
 import BBCodeParser from './bbcode';
@@ -57,20 +57,11 @@ interface VueState {
 
 const state = new State();
 
-const vue = <Vue & VueState>new Vue({
-  data: {
-    channels: undefined,
-    characters: undefined,
-    conversations: undefined,
-    state
-  }
-});
-
 const data = {
   connection: <Connection | undefined>undefined,
   logs: <Logs | undefined>undefined,
   settingsStore: <Settings.Store | undefined>undefined,
-  state: vue.state,
+  state: reactive(state),
   bbCodeParser: new BBCodeParser(),
   conversations: <Conversation.State | undefined>undefined,
   channels: <Channel.State | undefined>undefined,
@@ -85,8 +76,9 @@ const data = {
     module: K,
     subState: VueState[K]
   ): void {
-    Vue.set(vue, module, subState);
-    (<VueState[K]>data[module]) = subState;
+    // This is probably https://github.com/vuejs/core/issues/2981
+    // "Unwrapping breaks classes with private fields."
+    data[module] = reactive(subState) as any;
   },
   watch<T>(
     getter: (this: VueState) => T,
