@@ -1,4 +1,4 @@
-import { WatchHandler, reactive } from 'vue';
+import { WatchHandler, reactive, watch } from 'vue';
 import { CacheManager } from '../learn/cache-manager';
 import { Channels, Characters } from '../fchat';
 import BBCodeParser from './bbcode';
@@ -82,9 +82,9 @@ const data = {
   },
   watch<T>(
     getter: (this: VueState) => T,
-    callback: (n: any, o: any) => void
+    callback: (n: T, o: T) => void
   ): void {
-    vue.$watch(getter, callback);
+    watch(getter, callback);
   },
   async reloadSettings(): Promise<void> {
     const s = await core.settingsStore.get('settings');
